@@ -1,0 +1,14 @@
+{
+  "name": "hitokoto-renderer",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc ./build.mts && node ./build.mjs",
+    "dev": "tsc ./build.mts && node ./build.mjs --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.1",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.0"
+  }
+}
