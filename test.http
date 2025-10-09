@@ -1,0 +1,109 @@
+?? status == 200
+?? header content-type == application/json
+?? js response.parsedBody.status == 200
+?? js response.parsedBody.message == Ok.
+
+@host=https://hitokoto.cn/api/restful/v1
+/*
+fn loginAndGetToken
+*/
+###
+# @name loginAndGetToken
+POST /auth/login
+Content-Type: application/json
+
+{
+  "email": "{{HITOKOTO_EMAIL}}",
+  "password": "{{HITOKOTO_PASSWORD}}"
+}
+
+
+@token={{loginAndGetToken.data[0].token}}
+
+HTTP/1.1 200  - OK
+server: nginx
+date: Thu, 09 Oct 2025 04:31:46 GMT
+content-type: application/json
+vary: Accept-Encoding
+x-ratelimit-limit: 60
+x-ratelimit-remaining: 59
+content-encoding: gzip
+x-cache-lookup: Cache Miss, Hit From Upstream Cluster, Cache Miss
+cache-control: private, no-cache
+transfer-encoding: chunked
+x-nws-log-uuid: 13792979921119717219
+connection: close
+access-control-allow-origin: *
+ohc-upstream-trace: v1_Mainland_Trace_DogeCloud
+access-control-allow-headers: Authorization
+strict-transport-security: max-age=39528000; includeSubDomains; preload
+###
+# @ref loginAndGetToken
+GET /user
+Authorization: Bearer {{token}}
+?? body data[0].id exists
+
+HTTP/1.1 200  - OK
+server: nginx
+date: Thu, 09 Oct 2025 04:31:48 GMT
+content-type: application/json
+vary: Accept-Encoding
+x-ratelimit-limit: 60
+x-ratelimit-remaining: 59
+content-encoding: gzip
+x-cache-lookup: Cache Miss, Hit From Upstream Cluster, Cache Miss
+cache-control: private, no-cache
+transfer-encoding: chunked
+x-nws-log-uuid: 7189050128633306739
+connection: close
+access-control-allow-origin: *
+ohc-upstream-trace: v1_Mainland_Trace_DogeCloud
+access-control-allow-headers: Authorization
+strict-transport-security: max-age=39528000; includeSubDomains; preload
+###
+@uuid=9e9ada85-111e-475a-8b96-3771df547b96
+# @name getHitokotoByUUID
+# @ref loginAndGetToken
+GET /hitokoto/{{uuid}}
+Authorization: Bearer {{token}}
+
+?? body data[0].hitokoto == 即使人生是一场悲剧，也应该笑着把人生演完。
+
+HTTP/1.1 200  - OK
+server: nginx
+date: Thu, 09 Oct 2025 04:32:57 GMT
+content-type: application/json
+vary: Accept-Encoding
+x-ratelimit-limit: 60
+x-ratelimit-remaining: 59
+content-encoding: gzip
+x-cache-lookup: Cache Miss, Hit From Upstream Cluster, Cache Miss
+cache-control: private, no-cache
+transfer-encoding: chunked
+x-nws-log-uuid: 3666305184094561092
+connection: close
+access-control-allow-origin: *
+ohc-upstream-trace: v1_Mainland_Trace_DogeCloud
+access-control-allow-headers: Authorization
+strict-transport-security: max-age=39528000; includeSubDomains; preload
+###
+# @ref getHitokotoByUUID
+GET /hitokoto/{{uuid}}/score
+Authorization: Bearer {{token}}
+
+
+HTTP/1.1 200  - OK
+server: nginx
+date: Thu, 09 Oct 2025 05:29:44 GMT
+content-type: application/json
+x-ratelimit-limit: 60
+x-ratelimit-remaining: 58
+x-cache-lookup: Cache Miss, Hit From Upstream Cluster, Cache Miss
+cache-control: private, no-cache
+content-length: 145
+x-nws-log-uuid: 9166179700758780805
+connection: close
+access-control-allow-origin: *
+ohc-upstream-trace: v1_Mainland_Trace_DogeCloud
+access-control-allow-headers: Authorization
+strict-transport-security: max-age=39528000; includeSubDomains; preload
