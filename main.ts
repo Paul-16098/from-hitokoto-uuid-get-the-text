@@ -44,17 +44,12 @@ function fetchAndRenderHitokoto(uuid: string, token: string) {
       const data = d.data[0];
       let root = document.createElement("blockquote");
       root.cite = `https://hitokoto.cn/?uuid=${uuid}`;
-      let fromDisplay: string;
-      if (data.from) {
-        fromDisplay = data.from_who
-          ? `${data.from}(${data.from_who})`
-          : data.from;
-      } else {
-        fromDisplay = "无名氏";
-      }
 
       // 先渲染，後補加上評分避免未賦值使用
-      root.innerHTML = `<div>${data.hitokoto}  —— 「${fromDisplay}」</div>`;
+      const div = document.createElement("div");
+      div.textContent = data.hitokoto;
+      root.appendChild(div);
+      root.title = `${data.from_who}(n.d.).${data.from}.`;
       document.querySelector("body > hitokoto-meta")!.after(root);
 
       fetch(`https://hitokoto.cn/api/restful/v1/hitokoto/${uuid}/score`, {
@@ -64,16 +59,14 @@ function fetchAndRenderHitokoto(uuid: string, token: string) {
         },
       })
         .then((r) => r.json())
-        .then((scoreResp) => {
-          const average: number | undefined =
-            scoreResp.data?.[0]?.score?.average;
-          if (typeof average === "number") {
-            const div = root.querySelector("div");
-            if (div) {
-              const sub = document.createElement("sub");
-              sub.textContent = String(average);
-              div.appendChild(sub);
-            }
+        .then((scoreResp: hitokoto_uuid_score) => {
+          const score = scoreResp?.data[0]?.score;
+          if (score) {
+            const div = root.querySelector("div")!;
+            const sub = document.createElement("sub");
+            sub.textContent = String(score.average);
+            sub.title = `total:${score.total}\nparticipants:${score.participants}`;
+            div.appendChild(sub);
           } else if (
             scoreResp.message === "很抱歉，句子不存在或评分未创建" &&
             scoreResp.status === -1
@@ -82,6 +75,7 @@ function fetchAndRenderHitokoto(uuid: string, token: string) {
             if (div) {
               const sub = document.createElement("sub");
               sub.textContent = "0";
+              sub.title = `total:0\nparticipants:0`;
               div.appendChild(sub);
             }
           } else {
@@ -141,13 +135,12 @@ function text_main() {
         console.log([text, from, from_who, cite]);
 
         let root = document.createElement("blockquote");
-        let fromDisplay: string;
-        if (from) {
-          fromDisplay = from_who ? `${from}(${from_who})` : from;
-        } else {
-          fromDisplay = "无名氏";
-        }
-        root.innerHTML = `<div>${text}  —— 「${fromDisplay}」</div>`;
+        const div = document.createElement("div");
+        div.textContent = text;
+        root.appendChild(div);
+
+        root.innerHTML = `<div>${text}</div>`;
+        root.title = `${from_who}(n.d.).${from}.`;
         if (cite) {
           root.cite = cite;
         }

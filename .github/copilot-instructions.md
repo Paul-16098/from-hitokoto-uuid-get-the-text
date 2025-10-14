@@ -1,66 +1,48 @@
 # Copilot Instructions for this Repo
 
-This repo is a minimal browser-side TypeScript tool that renders Hitokoto quotes by reading custom HTML tags. Keep edits small and follow current patterns—no frameworks, no runtime deps, bundle to a single IIFE `main.js` for direct `<script>` use.
+這是一個極簡、純前端的 TypeScript 專案，用自訂 HTML 標籤渲染 Hitokoto 內容。請維持單一 IIFE 輸出 `main.js`、不引入框架與執行期相依，並沿用既有 DOM/資料流模式。
 
-## Big picture
+## 架構與資料流（看 `main.ts`）
 
-- Entry file: `main.ts`; output bundle: `main.js` (IIFE, browser, es2020, sourcemap).
-- Data sources via custom tags under `<body>`:
-  - `<hitokoto-meta>`: whitespace/comma-separated UUID list → fetch from Hitokoto API.
-  - `<text-meta>`: CSV-like lines `text,from,from_who,cite` → render directly.
-- Flow (see `main.ts`):
-  - `text_main()` parses and renders local text first, then `hitokoto_main()` handles remote UUIDs.
-  - `hitokoto_main()` obtains token via `loginAndGetToken(email, password)`, then calls `fetchAndRenderHitokoto(uuid, token)` and the corresponding `/score` API; renders `<blockquote>` after the source tag.
+- 入口：`main.ts` → esbuild 打包成 `main.js`（IIFE, browser, ES2020, sourcemap）。
+- 資料來源（僅限 `<body>` 直屬子節點）：
+  - `<text-meta>`：每行 `text,from,from_who,cite` → 立即渲染。
+  - `<hitokoto-meta>`：以逗號或空白分隔的 UUID 清單 → 先登入取 token，再拉句子與評分。
+- 執行順序：`text_main()` 先、`hitokoto_main()` 後（順序不可改）。
 
-## Build and dev workflow
+## 建置與環境注入
 
-- Scripts (`package.json`):
-  - `build`: `tsc ./build.mts && node ./build.mjs` → runs esbuild, bundles `main.ts` to `main.js`.
-  - `dev`: same as above with `--watch` (incremental rebuilds on change).
-- Tooling files:
-  - `build.mts` (compiled to `build.mjs`) drives esbuild with:
-    - `format: "iife"`, `platform: "browser"`, `target: ["es2020"]`, `sourcemap: true`.
-    - Env injection: reads `.env` and `process.env` for `HITOKOTO_EMAIL` and `HITOKOTO_PASSWORD`, passes via `define`.
-  - `tsconfig.json`: strict TS, outputs to project root; TS module is `commonjs` (esbuild bundling supersedes this for `main.ts`).
-- Package manager: `pnpm-lock.yaml` exists; `pnpm` preferred, but `npm` scripts are defined and also work.
+- 指令：`pnpm run build`（實作為 `tsc ./build.mts && node ./build.mjs`）。目前沒有 `dev` 腳本。
+- `build.mts` esbuild 參數：`format: iife`、`platform: browser`、`target: es2020`、`sourcemap: true`。
+- 認證變數：`HITOKOTO_EMAIL`、`HITOKOTO_PASSWORD` 會由 `build.mts` 自 `.env`/`process.env` 注入至 define。
+- 取值優先序（`resolveCredential`）：define → `globalThis[NAME]` → `process.env[NAME]`。缺認證時，僅執行本地文字渲染。
 
-## Auth and configuration
+## DOM 規約與渲染模式
 
-- Credentials are not hardcoded. At build time, provide:
-  - `HITOKOTO_EMAIL`
-  - `HITOKOTO_PASSWORD`
-- Ways to inject (in order resolved by `main.ts`):
-  1. esbuild `define` (from `.env`/shell via `build.mts`), 2) `globalThis[NAME]` (set on `window` before loading `main.js`), 3) `process.env[NAME]` (useful for Node-based tests).
-- If credentials are missing, `hitokoto_main()` warns and exits; `text_main()` still runs.
+- 僅選取 `body > text-meta` 與 `body > hitokoto-meta`，資料標籤本身不渲染。
+- `<text-meta>`：逐行產生 `<blockquote>`，內容為 `<div>{text}</div>`；
+  - `from` 預設為「无名氏」，`cite` 若存在則設為 `blockquote.cite`；
+  - `title` 格式：`${from_who}(n.d.).${from}.`；插入位置：緊接在該 `text-meta` 後方。
+- `<hitokoto-meta>`：每個 UUID 產生一個 `<blockquote>`，內容為 `<div>{hitokoto}</div>`；
+  - `cite` 固定為 `https://hitokoto.cn/?uuid={uuid}`，`title` 為 `${from_who}(n.d.).${from}.`；
+  - 插入位置：在「第一個」`<hitokoto-meta>` 後方；評分 API 命中時於 `<div>` 末尾附加 `<sub>{average|0}</sub>`。
 
-## HTML usage conventions
+## API 介面（以 `fetch` 呼叫）
 
-- Tags must be direct children of `<body>` and are not rendered themselves; rendered `<blockquote>`s are inserted immediately after the tag that provided the data.
-- `<hitokoto-meta>` content is split by comma or whitespace into UUIDs.
-- `<text-meta>` uses line-per-entry, fields split by comma. Missing `from` falls back to `无名氏`.
-- The quote line template is: `${text} —— 「${fromDisplay}」` with optional `<sub>` score appended when available.
+- 登入：`POST https://hitokoto.cn/api/restful/v1/auth/login`（URLSearchParams body）→ 回傳 `data[0].token`。
+- 句子：`GET https://hitokoto.cn/api/restful/v1/hitokoto/{uuid}`（需 Bearer token）。
+- 評分：`GET https://hitokoto.cn/api/restful/v1/hitokoto/{uuid}/score`；
+  - 若回應訊息為「很抱歉，句子不存在或评分未创建」且 `status === -1`，視為 0 分；否則顯示 `score.average`。
 
-## Extension points (follow these patterns)
+## 擴充與在地慣例
 
-- Parsing: keep DOM selection anchors (`body > hitokoto-meta`, `body > text-meta`) and split rules consistent.
-- Rendering: always create a `<blockquote>` with `cite` when provided; place it with `Element.after(...)` right after the source tag.
-- API surface:
-  - Auth endpoint: `POST https://hitokoto.cn/api/restful/v1/auth/login` (URLSearchParams body).
-  - Quote endpoint: `GET https://hitokoto.cn/api/restful/v1/hitokoto/{uuid}`.
-  - Score endpoint: `GET https://hitokoto.cn/api/restful/v1/hitokoto/{uuid}/score` (append `<sub>` with `average` when present; treat "句子不存在或评分未创建" as score 0).
-- Env adds: to support new defines, append keys to the array in `build.mts` that populates `defs` and read them in `main.ts` via `resolveCredential(name)`.
+- 保持單檔 IIFE；勿移動檔案/目錄，`tsconfig.json` 假設 `outDir: "."`。
+- 新增環境變數時：在 `build.mts` 的 `defs` 陣列加 key，並透過 `resolveCredential(name)` 讀取。
+- 嚴格沿用選取器與切分規則（`body > ...`、UUID 以逗號/空白切分；`text-meta` 逐行 CSV-like）。
 
-## Gotchas and local conventions
+## 開發者工作流與範例
 
-- Order matters: `text_main()` runs before `hitokoto_main()`.
-- Do not introduce heavy bundlers/frameworks; keep a single IIFE output.
-- Avoid moving files out of root: `tsconfig` and build outputs assume current directory layout (`outDir: "."`).
-- Keep strings and UI minimal; current locale mixes zh-CN for fallbacks (e.g., `无名氏`).
+- 安裝與建置：`pnpm install` → `pnpm run build`，以 `<script src="./main.js">` 在靜態頁測試。
+- 介面測試：`test.http` 提供 login/quote/score 範例；型別位於 `api/*.d.ts`。
 
-## Quick examples from this repo
-
-- Token acquisition: `loginAndGetToken(...)` → returns `data[0].token`.
-- Fallback credentials resolution in `main.ts`: checks `HITOKOTO_EMAIL/PASSWORD` define → `globalThis` → `process.env`.
-- Render pattern: set `blockquote.cite`, write innerHTML to a `<div>`, then append `<sub>` for scores when available.
-
-If anything here seems outdated (new APIs, different tag shapes, added scripts), please point it out so we can update these instructions.
+若上述描述與實作出現出入（API 或標籤格式變更），請更新本檔以維持與程式一致。

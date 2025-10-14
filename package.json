@@ -3,8 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "build": "tsc ./build.mts && node ./build.mjs",
-    "dev": "tsc ./build.mts && node ./build.mjs --watch"
+    "build": "tsc ./build.mts && node ./build.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.6.1",

@@ -39,7 +39,6 @@ var defs = {};
         defs[k] = JSON.stringify(env[k]);
     }
 });
-var watch = process.argv.includes("--watch");
 build({
     entryPoints: ["main.ts"],
     outfile: "main.js",
@@ -52,12 +51,7 @@ build({
     logLevel: "info",
 })
     .then(function () {
-    if (watch) {
-        console.log("[build] watch mode (要重新編譯請修改檔案)");
-    }
-    else {
-        console.log("[build] done");
-    }
+    console.log("[build] done");
 })
     .catch(function (e) {
     console.error(e);

@@ -27,8 +27,6 @@ const defs: Record<string, string> = {};
   }
 });
 
-const watch = process.argv.includes("--watch");
-
 build({
   entryPoints: ["main.ts"],
   outfile: "main.js",
@@ -41,11 +39,7 @@ build({
   logLevel: "info",
 })
   .then(() => {
-    if (watch) {
-      console.log("[build] watch mode (要重新編譯請修改檔案)");
-    } else {
-      console.log("[build] done");
-    }
+    console.log("[build] done");
   })
   .catch((e) => {
     console.error(e);
