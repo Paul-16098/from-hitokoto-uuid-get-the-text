@@ -33,7 +33,7 @@ build({
   bundle: true,
   format: "iife",
   platform: "browser",
-  target: ["es2020"],
+  target: ["esnext"],
   sourcemap: true,
   define: defs,
   logLevel: "info",

@@ -10,7 +10,7 @@
 ## Technology Stack
 
 - 語言：TypeScript（strict）
-- 打包：esbuild（IIFE、browser、target: ES2020、sourcemap）
+- 打包：esbuild（IIFE、browser、target: ESNext、sourcemap）
 - 建置流程：以 `tsc` 編譯 `build.mts` → 執行產生的 `build.mjs` → esbuild 輸出 `main.js`
 - 套件管理：pnpm（亦可使用 npm）
 - 版本（取自 `package.json`）：
@@ -20,12 +20,15 @@
 
 ## Project Architecture
 
-- 入口：`main.ts` → esbuild 打包成 `main.js`（IIFE, browser, ES2020, sourcemap）。
-- 資料來源（僅限 `<body>` 直屬子節點）：
-  - `<text-meta>`：每行 `text,from,from_who,cite` → 立即渲染。
-  - `<hitokoto-meta>`：以逗號或空白分隔的 UUID 清單 → 先登入取 token，再拉句子與評分。
-- 執行順序：`text_main()` 先、`hitokoto_main()` 後（順序不可改）。
-- 評分 API 命中時於 `<div>` 末尾附加 `<sub>{average|0}</sub>`。
+- 入口：`main.ts` → esbuild 打包成 `main.js`（IIFE, browser, ESNext, sourcemap）。
+- 全域 orchestrator（DOMContentLoaded 後執行）：
+  - 僅處理 `<body>` 直屬的 `<text-meta>` 與 `<hitokoto-meta>`；先渲染 text、後處理 hitokoto；
+  - 聚合所有 `<hitokoto-meta>` 的 UUID，去重後發請求；
+  - 渲染結果統一插入在「第一個」`<hitokoto-meta>` 後方。
+- 資料來源：
+  - `<text-meta>`：每行 `text,from,from_who,cite` → 即時轉為 `<blockquote>`。
+  - `<hitokoto-meta>`：逗號/空白分隔的 UUID → 先登入取 token，再抓句子與評分。
+- 評分 API 命中時於 `<div>` 末尾附加 `<sub>{average|0}</sub>`（不存在或未創建評分時顯示 0）。
 
 ## Getting Started
 
@@ -92,7 +95,7 @@ HITOKOTO_PASSWORD=your-password
 ## Key Features
 
 - `<text-meta>`：逐行 CSV-like 解析與渲染；`from` 預設「无名氏」，`cite` 會設為 `blockquote.cite`。
-- `<hitokoto-meta>`：以逗號或空白分隔 UUID；登入後抓取句子與評分，插入在第一個 `<hitokoto-meta>` 後方。
+- `<hitokoto-meta>`：以逗號或空白分隔 UUID；登入後抓取句子與評分，插入在第一個 `<hitokoto-meta>` 後方（跨多標籤聚合去重）。
 - 評分顯示：若成功取得，於 `<div>` 後附加 `<sub>{average}</sub>`；若回應為「很抱歉，句子不存在或评分未创建」且 `status === -1`，顯示 0。
 - 單檔 IIFE；無框架、無 runtime 相依，適合任意靜態頁面直接引入。
 
@@ -100,7 +103,7 @@ HITOKOTO_PASSWORD=your-password
 
 - 指令：
   - `pnpm run build` → `tsc ./build.mts && node ./build.mjs`
-- 打包參數：`format: iife`、`platform: browser`、`target: es2020`、`sourcemap: true`。
+- 打包參數：`format: iife`、`platform: browser`、`target: esnext`、`sourcemap: true`。
 - 認證變數由 `build.mts` 自 `.env`/`process.env` 注入至 esbuild define。
 - 變更原則：保持單一 IIFE，不搬移檔案/目錄、避免引入框架與額外 runtime。
 
