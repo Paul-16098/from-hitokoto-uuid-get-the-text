@@ -28,12 +28,12 @@ const defs: Record<string, string> = {};
 });
 
 build({
-  entryPoints: ["main.ts"],
-  outfile: "main.js",
+  entryPoints: ["./main.ts", "./TextMeta.ts", "./HitokotoMeta.ts"],
+  outdir: ".",
   bundle: true,
-  format: "iife",
+  minify: true,
   platform: "browser",
-  target: ["esnext"],
+  target: "ESNext",
   sourcemap: true,
   define: defs,
   logLevel: "info",

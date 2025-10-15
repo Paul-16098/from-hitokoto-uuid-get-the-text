@@ -1,5 +1,5 @@
 node_modules/
 .env
 
-main.js
-main.js.map
+*.js
+*.js.map
