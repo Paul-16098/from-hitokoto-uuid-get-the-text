@@ -31,7 +31,7 @@ export function randomUUID(): string {
     : (() => {
         // 最後退回：非安全隨機，但可用於無 crypto 的環境
         const arr = new Uint8Array(16);
-        for (let i = 0; i < 16; i++) arr[i] = (Math.random() * 256) | 0;
+        for (let i = 0; i < 16; i++) arr[i] = Math.trunc(Math.random() * 256);
         return arr;
       })();
 
@@ -67,5 +67,17 @@ export function randomUUID(): string {
     hex[14] +
     hex[15]
   );
+}
+/**
+ * 根據 data-from_uuid 清除由自訂元素渲染出的節點。
+ * WHY: 兩個元件皆有相同清理流程，抽成共用以避免重複。
+ */
+export function removeByFromUUID(uuid?: string) {
+  if (!uuid) return;
+  for (const e of Array.from(
+    document.querySelectorAll(`[data-from_uuid="${uuid}"]`),
+  )) {
+    e.remove();
+  }
 }
 //#endregion
