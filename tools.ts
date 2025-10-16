@@ -31,7 +31,7 @@ export function randomUUID(): string {
     : (() => {
         // 最後退回：非安全隨機，但可用於無 crypto 的環境
         const arr = new Uint8Array(16);
-        for (let i = 0; i < 16; i++) arr[i] = (Math.random() * 256) | 0;
+        for (let i = 0; i < 16; i++) arr[i] = Math.trunc(Math.random() * 256);
         return arr;
       })();
 
@@ -67,5 +67,37 @@ export function randomUUID(): string {
     hex[14] +
     hex[15]
   );
+}
+/**
+ * 根據 data-from_uuid 清除由自訂元素渲染出的節點。
+ * WHY: 兩個元件皆有相同清理流程，抽成共用以避免重複。
+ */
+export function removeByFromUUID(uuid?: string) {
+  if (!uuid) return;
+  for (const e of Array.from(
+    document.querySelectorAll(`[data-from_uuid="${uuid}"]`),
+  )) {
+    e.remove();
+  }
+}
+/**
+ * 建立一個 blockquote，內含一個顯示文字的 div，並設定 cite/title。
+ * 傳回 root 與 div 以便呼叫端後續附加（例如分數 <sub>）。
+ */
+export function createQuote(
+  text: string,
+  from: string,
+  from_who?: string,
+  cite?: string,
+): { root: HTMLQuoteElement; div: HTMLDivElement } {
+  const root = document.createElement("blockquote");
+  if (cite) root.cite = cite;
+  root.title = computeTitle(from, from_who);
+
+  const div = document.createElement("div");
+  div.textContent = text;
+  root.appendChild(div);
+
+  return { root, div };
 }
 //#endregion

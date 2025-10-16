@@ -1,49 +1,39 @@
-import { computeTitle, insertAfter, randomUUID } from "./tools";
+import {
+  insertAfter,
+  randomUUID,
+  removeByFromUUID,
+  createQuote,
+} from "./tools";
 
-// 這些常數會在 build 時由 bundler (esbuild / Vite / etc.) 以 define 注入。
-// Fallback 順序：define 注入 (globalThis) -> window 上 (若使用 script inline 設定) -> process.env (在 Node 端測試時)
-/**
- * 認證常數說明：
- * - 值會在 build 時以 define 注入，亦允許於執行期從 globalThis 或 process.env 取得。
- * - 若任一缺失，將略過遠端一言流程，只渲染本地 <text-meta>。
- */
+// WHY: 認證值透過 build-time define 注入，但仍允許在執行期從 globalThis / process.env 取得，
+// 以便在不同佈署與測試情境下保持同一程式碼路徑。
+// SECURITY: 不在前端長期保存 token；每次載入時動態登入取得，並僅用於當次請求。
+// FALLBACK: 若任一認證缺失，直接跳過遠端流程，避免半套設定造成的錯誤/重試風暴。
+/** 認證常數（build-time define 可注入，執行期亦可從 global 環境取得） */
 declare const HITOKOTO_EMAIL: string | undefined;
 declare const HITOKOTO_PASSWORD: string | undefined;
 
-/** 解析認證值。WHY：在瀏覽器與 Node 測試環境皆可取到相同設定，降低環境耦合。 */
+/** WHY: 在瀏覽器與 Node 測試環境皆可取得相同設定，降低環境耦合。 */
 function resolveCredential(name: string): string | undefined {
   // 允許從 globalThis 動態存取
   const injected = (globalThis as any)[name];
   // Node / 測試環境
   const fromProcess =
-    typeof process !== "undefined" ? process.env?.[name] : undefined;
+    typeof process === "undefined" ? undefined : process.env?.[name];
   switch (name) {
     case "HITOKOTO_EMAIL":
-      return typeof HITOKOTO_EMAIL !== "undefined"
-        ? HITOKOTO_EMAIL
-        : injected || fromProcess;
+      return HITOKOTO_EMAIL ?? (injected || fromProcess);
     case "HITOKOTO_PASSWORD":
-      return typeof HITOKOTO_PASSWORD !== "undefined"
-        ? HITOKOTO_PASSWORD
-        : injected || fromProcess;
+      return HITOKOTO_PASSWORD ?? (injected || fromProcess);
     default:
       return injected || fromProcess;
   }
 }
 
 class HitokotoMeta extends HTMLElement {
-  static readonly observedAttributes = ["innerText"];
-  attributeChangedCallback() {
-    // 清除舊渲染（由本元件產生，透過 data-from_uuid 辨識）
-    document
-      .querySelectorAll(`[data-from_uuid="${this.dataset.uuid}"]`)
-      .forEach((e) => e.remove());
-    this.process_hitokoto_data();
-  }
   disconnectedCallback() {
-    document
-      .querySelectorAll(`[data-from_uuid="${this.dataset.uuid}"]`)
-      .forEach((e) => e.remove());
+    // WHY: 透過 data-from_uuid 標記與清除，避免重複內容與記憶體洩漏。
+    removeByFromUUID(this.dataset.uuid);
   }
 
   email: string;
@@ -54,25 +44,26 @@ class HitokotoMeta extends HTMLElement {
     this.password = resolveCredential("HITOKOTO_PASSWORD")!;
   }
   connectedCallback() {
-    // 與 <text-meta> 同理：標籤為資料容器，不直接渲染內容
+    // WHY: 與 <text-meta> 相同，本元素只作為資料容器與插入錨點，
+    // 實際渲染內容插在元素後方，維持一致的清理/追蹤策略。
     this.hidden = true;
     this.dataset.uuid = randomUUID();
 
     this.process_hitokoto_data();
   }
   public get id_collection() {
-    let m: Set<string> = new Set();
-    this.innerText
-      .trim()
-      .split(/,|\s/g)
-      .forEach((value: string) => {
-        const v = value.trim();
-        if (v) m.add(v);
-      });
+    const m = new Set<string>();
+    for (const value of this.innerText.trim().split(/,|\s/g)) {
+      const v = value.trim();
+      if (v) m.add(v);
+    }
     return m;
   }
   public set id_collection(value) {
     this.innerText = Array.from(value).join(",");
+    // RE-RENDER: 更新原始資料後，先清，後渲染。
+    removeByFromUUID(this.dataset.uuid);
+    this.process_hitokoto_data();
   }
 
   private async process_hitokoto_data() {
@@ -82,15 +73,17 @@ class HitokotoMeta extends HTMLElement {
       );
       return;
     }
+    // 清理舊內容，避免重複渲染
+    removeByFromUUID(this.dataset.uuid);
     const token = await loginAndGetToken(this.email, this.password);
     const promises: Promise<HTMLQuoteElement | void>[] = [];
-    this.id_collection.forEach(async (hid) => {
+    for (const hid of this.id_collection) {
       promises.push(
         fetchAndRenderHitokoto(hid, token).catch((err) => {
           console.error("[hitokoto] fetch uuid failed", hid, err);
         }),
       );
-    });
+    }
 
     const results = await Promise.all(promises);
     const frag = document.createDocumentFragment();
@@ -109,7 +102,7 @@ customElements.define("hitokoto-meta", HitokotoMeta);
 
 //#region hitokoto
 function loginAndGetToken(email: string, password: string): Promise<string> {
-  // 外部 API：POST /auth/login（URLSearchParams）
+  // WHY: 使用 URLSearchParams 傳輸表單欄位，配合官方登入端點。
   return fetch("https://hitokoto.cn/api/restful/v1/auth/login", {
     method: "POST",
     body: new URLSearchParams({ email, password }),
@@ -125,7 +118,7 @@ function fetchAndRenderHitokoto(
   uuid: string,
   token: string,
 ): Promise<HTMLQuoteElement> {
-  // 外部 API：GET /hitokoto/{uuid}
+  // WHY: 先取得句子本體再查詢評分；避免在評分 API 出錯時阻塞主要內容。
   return fetch(`https://hitokoto.cn/api/restful/v1/hitokoto/${uuid}`, {
     headers: {
       Accept: "application/json",
@@ -138,16 +131,14 @@ function fetchAndRenderHitokoto(
     })
     .then((d: hitokoto_uuid) => {
       const data = d.data[0];
-      let root = document.createElement("blockquote");
-      root.cite = `https://hitokoto.cn/?uuid=${uuid}`;
+      const { root, div } = createQuote(
+        data.hitokoto,
+        data.from,
+        data.from_who,
+        `https://hitokoto.cn/?uuid=${uuid}`,
+      );
 
-      // 先渲染，後補加上評分避免未賦值使用
-      const div = document.createElement("div");
-      div.textContent = data.hitokoto;
-      root.appendChild(div);
-      root.title = computeTitle(data.from, data.from_who);
-
-      // 外部 API：GET /hitokoto/{uuid}/score
+      // NOTE: 之後補上評分。若評分 API 回覆句子不存在且 status === -1，按照規則顯示 0。
       return fetch(
         `https://hitokoto.cn/api/restful/v1/hitokoto/${uuid}/score`,
         {
