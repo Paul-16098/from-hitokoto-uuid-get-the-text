@@ -1,8 +1,8 @@
 import {
-  computeTitle,
   insertAfter,
   randomUUID,
   removeByFromUUID,
+  createQuote,
 } from "./tools";
 
 // WHY: 認證值透過 build-time define 注入，但仍允許在執行期從 globalThis / process.env 取得，
@@ -131,14 +131,12 @@ function fetchAndRenderHitokoto(
     })
     .then((d: hitokoto_uuid) => {
       const data = d.data[0];
-      let root = document.createElement("blockquote");
-      root.cite = `https://hitokoto.cn/?uuid=${uuid}`;
-
-      // 先渲染，後補加上評分避免未賦值使用
-      const div = document.createElement("div");
-      div.textContent = data.hitokoto;
-      root.appendChild(div);
-      root.title = computeTitle(data.from, data.from_who);
+      const { root, div } = createQuote(
+        data.hitokoto,
+        data.from,
+        data.from_who,
+        `https://hitokoto.cn/?uuid=${uuid}`,
+      );
 
       // NOTE: 之後補上評分。若評分 API 回覆句子不存在且 status === -1，按照規則顯示 0。
       return fetch(

@@ -6,7 +6,7 @@
 
 - 入口與元素：`main.ts` 僅匯入 `./TextMeta`、`./HitokotoMeta` 以註冊自訂元素；各元素在 `connectedCallback` 自行渲染，沒有全域 orchestrator。
 - 渲染位置：自訂元素本身 `hidden`，渲染結果插在元素「後方」而非元素內部；產出節點帶 `data-from_uuid`、`data-from_index` 以便清理。
-- `<text-meta>` 資料格式（逐行 CSV-like）：`text, from_who, from, cite`。
+- `<text-meta>` 資料格式（逐行 CSV-like）：`text, from, from_who, cite`。
   - 預設值：`from_who=「佚名」`、`from=「未知」`。
   - 轉出：`<blockquote title="${from_who}(n.d.).${from}."><div>{text}</div></blockquote>`；若有 `cite` 則設為 `blockquote.cite`。
 - `<hitokoto-meta>` 內容：以逗號或空白分隔 UUID；每個元素各自處理並插入在該元素後方（未跨元素聚合）。

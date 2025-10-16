@@ -1,8 +1,8 @@
 import {
-  computeTitle,
   insertAfter,
   randomUUID,
   removeByFromUUID,
+  createQuote,
 } from "./tools";
 
 // WHY: <text-meta> 採用「逐行 CSV-like」資料格式 (text, from_who, from, cite)
@@ -109,16 +109,14 @@ class TextMeta extends HTMLElement {
 
     for (let i = 0; i < this.text_collection.length; i++) {
       const value = this.text_collection[i];
-
-      const root = document.createElement("blockquote");
+      const { root } = createQuote(
+        value.text,
+        value.from,
+        value.from_who,
+        value.cite,
+      );
       root.dataset.from_uuid = this.dataset.uuid;
       root.dataset.from_index = i.toString();
-      const div = document.createElement("div");
-      div.textContent = value.text;
-      root.appendChild(div);
-      root.title = computeTitle(value.from, value.from_who);
-      if (value.cite) root.cite = value.cite;
-
       frag.appendChild(root);
     }
 

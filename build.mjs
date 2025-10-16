@@ -73,9 +73,9 @@ function loadEnv() {
 var env = __assign(__assign({}, process.env), loadEnv());
 var defs = {};
 for (var _i = 0, _a = ["HITOKOTO_EMAIL", "HITOKOTO_PASSWORD"]; _i < _a.length; _i++) {
-    var k = _a[_i];
-    if (env[k]) {
-        defs[k] = JSON.stringify(env[k]);
+    var key = _a[_i];
+    if (env[key]) {
+        defs[key] = JSON.stringify(env[key]);
     }
 }
 (function () { return __awaiter(void 0, void 0, void 0, function () {

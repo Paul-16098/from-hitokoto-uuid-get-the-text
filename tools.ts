@@ -80,4 +80,24 @@ export function removeByFromUUID(uuid?: string) {
     e.remove();
   }
 }
+/**
+ * 建立一個 blockquote，內含一個顯示文字的 div，並設定 cite/title。
+ * 傳回 root 與 div 以便呼叫端後續附加（例如分數 <sub>）。
+ */
+export function createQuote(
+  text: string,
+  from: string,
+  from_who?: string,
+  cite?: string,
+): { root: HTMLQuoteElement; div: HTMLDivElement } {
+  const root = document.createElement("blockquote");
+  if (cite) root.cite = cite;
+  root.title = computeTitle(from, from_who);
+
+  const div = document.createElement("div");
+  div.textContent = text;
+  root.appendChild(div);
+
+  return { root, div };
+}
 //#endregion
